@@ -145,8 +145,8 @@ ARG SPILO_VERSION=4.0-p2  # Change this to update Spilo version
 ## Version Matrix
 
 | Spilo Version | PostgreSQL Version | pg_uuidv7 Version |
-|---------------|-------------------|-------------------|
-| 4.0-p2        | 17                | latest (main)     |
+| ------------- | ------------------ | ----------------- |
+| 4.0-p2        | 17                 | latest (main)     |
 
 ## Contributing
 
