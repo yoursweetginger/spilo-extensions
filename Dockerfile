@@ -4,8 +4,6 @@
 ARG SPILO_VERSION=4.0-p2
 FROM ghcr.io/zalando/spilo-17:${SPILO_VERSION}
 
-USER root
-
 # Install build dependencies and pg_uuidv7 extension
 RUN set -ex \
     && apt-get update \
@@ -27,8 +25,3 @@ RUN set -ex \
         git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-USER postgres
-
-# Verify the extension is installed
-RUN ls -la /usr/share/postgresql/17/extension/pg_uuidv7*
