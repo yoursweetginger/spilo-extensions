@@ -4,7 +4,7 @@
 ARG SPILO_VERSION=4.0-p2
 FROM ghcr.io/zalando/spilo-17:${SPILO_VERSION}
 
-# Install build dependencies and pg_uuidv7 extension
+# Install build dependencies and PostgreSQL extensions (pg_uuidv7, pg_partman)
 RUN set -ex \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -17,8 +17,13 @@ RUN set -ex \
     && cd pg_uuidv7 \
     && make \
     && make install \
+    && cd /tmp \
+    && git clone https://github.com/pgpartman/pg_partman.git \
+    && cd pg_partman \
+    && make \
+    && make install \
     && cd / \
-    && rm -rf /tmp/pg_uuidv7 \
+    && rm -rf /tmp/pg_uuidv7 /tmp/pg_partman \
     && apt-get purge -y --auto-remove \
         build-essential \
         postgresql-server-dev-17 \

@@ -1,19 +1,23 @@
-# Spilo PostgreSQL with pg_uuidv7 Extension
+# Spilo PostgreSQL with Custom Extensions
 
-Custom [Zalando Spilo](https://github.com/zalando/spilo) PostgreSQL 17 Docker image with the [pg_uuidv7](https://github.com/fboulnois/pg_uuidv7) extension pre-installed.
+Custom [Zalando Spilo](https://github.com/zalando/spilo) PostgreSQL 17 Docker image with [pg_uuidv7](https://github.com/fboulnois/pg_uuidv7) and [pg_partman](https://github.com/pgpartman/pg_partman) extensions pre-installed.
 
 ## Overview
 
-This project builds a custom Spilo image that extends the official Zalando Spilo PostgreSQL 17 image with the `pg_uuidv7` extension. Spilo is a highly available PostgreSQL cluster solution using Patroni, designed for cloud environments and Kubernetes.
+This project builds a custom Spilo image that extends the official Zalando Spilo PostgreSQL 17 image with additional PostgreSQL extensions. Spilo is a highly available PostgreSQL cluster solution using Patroni, designed for cloud environments and Kubernetes.
 
 ## Features
 
 - **Base Image**: Zalando Spilo PostgreSQL 17 (version 4.0-p2)
-- **Extension**: pg_uuidv7 for generating UUID v7 identifiers
+- **Extensions**:
+  - pg_uuidv7 for generating UUID v7 identifiers
+  - pg_partman for native table partitioning management
 - **Multi-Architecture**: Supports both `linux/amd64` and `linux/arm64`
 - **Automated Builds**: GitHub Actions workflow for CI/CD
 
-## What is pg_uuidv7?
+## Extensions
+
+### pg_uuidv7
 
 [pg_uuidv7](https://github.com/fboulnois/pg_uuidv7) is a PostgreSQL extension that provides UUID v7 generation. UUID v7 is a time-ordered UUID format that:
 
@@ -21,6 +25,17 @@ This project builds a custom Spilo image that extends the official Zalando Spilo
 - Maintains lexicographical sortability
 - Reduces index fragmentation compared to random UUIDs (v4)
 - Improves query performance on indexed UUID columns
+
+### pg_partman
+
+[pg_partman](https://github.com/pgpartman/pg_partman) is an extension to help manage time-based and serial-based table partition sets. Features include:
+
+- Automatic partition creation and management
+- Support for native PostgreSQL partitioning (declarative partitioning)
+- Time-based and serial-based partitioning strategies
+- Automatic partition maintenance and retention management
+- Sub-partitioning support
+- Undo partitioning capabilities
 
 ## Usage
 
@@ -47,16 +62,18 @@ spec:
     mydb:
       extensions:
         pg_uuidv7: public
+        pg_partman: public
   volume:
     size: "10Gi"
 ```
 
-### Enabling the Extension
+### Enabling the Extensions
 
-Once your PostgreSQL cluster is running, connect to your database and enable the extension:
+Once your PostgreSQL cluster is running, connect to your database and enable the extensions:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+CREATE EXTENSION IF NOT EXISTS pg_partman;
 ```
 
 ### Using UUID v7
@@ -77,6 +94,37 @@ INSERT INTO users (username) VALUES ('alice');
 
 -- UUID v7 IDs are time-ordered
 SELECT id, username FROM users ORDER BY id;
+```
+
+### Using pg_partman
+
+```sql
+-- Create a parent table with native partitioning
+CREATE TABLE events (
+    id BIGSERIAL,
+    event_time TIMESTAMPTZ NOT NULL,
+    event_data JSONB,
+    PRIMARY KEY (id, event_time)
+) PARTITION BY RANGE (event_time);
+
+-- Set up pg_partman to manage partitions
+SELECT partman.create_parent(
+    p_parent_table => 'public.events',
+    p_control => 'event_time',
+    p_type => 'native',
+    p_interval => 'daily',
+    p_premake => 7
+);
+
+-- Update partition configuration
+UPDATE partman.part_config 
+SET infinite_time_partitions = true,
+    retention = '30 days',
+    retention_keep_table = false
+WHERE parent_table = 'public.events';
+
+-- Schedule partition maintenance (run this periodically via cron or pg_cron)
+SELECT partman.run_maintenance_proc();
 ```
 
 ## Building Locally
@@ -144,9 +192,9 @@ ARG SPILO_VERSION=4.0-p2  # Change this to update Spilo version
 
 ## Version Matrix
 
-| Spilo Version | PostgreSQL Version | pg_uuidv7 Version |
-| ------------- | ------------------ | ----------------- |
-| 4.0-p2        | 17                 | latest (main)     |
+| Spilo Version | PostgreSQL Version | pg_uuidv7 Version | pg_partman Version |
+| ------------- | ------------------ | ----------------- | ------------------ |
+| 4.0-p2        | 17                 | latest (main)     | latest (master)    |
 
 ## Contributing
 
@@ -160,6 +208,7 @@ This project follows the same license as the upstream projects it builds upon.
 
 - [Zalando Spilo](https://github.com/zalando/spilo) - High availability PostgreSQL with Patroni
 - [pg_uuidv7](https://github.com/fboulnois/pg_uuidv7) - PostgreSQL UUID v7 extension
+- [pg_partman](https://github.com/pgpartman/pg_partman) - PostgreSQL partition manager
 - [Zalando Postgres Operator](https://github.com/zalando/postgres-operator) - Kubernetes operator for PostgreSQL
 
 ## Support
@@ -169,3 +218,4 @@ For issues related to:
 - **This custom image**: Open an issue in this repository
 - **Spilo**: See [Zalando Spilo issues](https://github.com/zalando/spilo/issues)
 - **pg_uuidv7**: See [pg_uuidv7 issues](https://github.com/fboulnois/pg_uuidv7/issues)
+- **pg_partman**: See [pg_partman issues](https://github.com/pgpartman/pg_partman/issues)
